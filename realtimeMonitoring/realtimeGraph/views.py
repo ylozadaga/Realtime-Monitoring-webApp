@@ -586,6 +586,108 @@ def get_map_json(request, **kwargs):
     return JsonResponse(data_result)
 
 
+def get_dewpoint(request, **kwargs):
+    data_result = {}
+
+    temperature = Measurement.objects.filter(name="Temperatura")[0]
+    humidity = Measurement.objects.filter(name="Humedad")[0]
+
+    locations = Location.objects.all()
+
+    try:
+        start = datetime.fromtimestamp(float(request.GET.get("from", None)) / 1000)
+    except:
+        start = None
+
+    try:
+        end = datetime.fromtimestamp(float(request.GET.get("to", None)) / 1000)
+    except:
+        end = None
+
+    if start is None and end is None:
+        start = datetime.now()
+        start = start - dateutil.relativedelta.relativedelta(weeks=1)
+        end = datetime.now()
+        end += dateutil.relativedelta.relativedelta(days=1)
+    elif end is None:
+        end = datetime.now()
+    elif start is None:
+        start = datetime.fromtimestamp(0)
+
+    data = []
+
+    for location in locations:
+        stations = Station.objects.filter(location=location)
+
+        location_temp_data = (Data.objects.filter(
+            station__in=stations, measurement__name=temperature.name,  time__gte=start.date(), time__lte=end.date())
+                              .order_by('time'))
+
+        location_hum_data = (Data.objects.filter(
+            station__in=stations, measurement__name=humidity.name,  time__gte=start.date(), time__lte=end.date())
+                             .order_by('time'))
+
+        if location_temp_data.count() <= 0 or location_hum_data.count() <= 0:
+            continue
+
+        location_dewpoint_data = get_dewpoint_data(location_temp_data, location_hum_data)
+
+        get_formatted_dewpoint_data(location_dewpoint_data, location, stations, data)
+        get_formatted_temp_data(location_temp_data, location, stations, data)
+
+    start_formatted = start.strftime("%d/%m/%Y") if start is not None else " "
+    end_formatted = end.strftime("%d/%m/%Y") if end is not None else " "
+
+    data_result["locations"] = [loc.str() for loc in locations]
+    data_result["start"] = start_formatted
+    data_result["end"] = end_formatted
+    data_result["data"] = data
+
+    return JsonResponse(data_result)
+
+
+def get_dewpoint_data(location_temp_data, location_hum_data):
+    location_dewpoint_data = []
+    for (temp, hum) in zip(location_temp_data, location_hum_data):
+        dewpoint = pow((hum.value/100), 0.125) * (112 + (0.9 * temp.value)) + (0.1 * temp.value) - 112
+        location_dewpoint_data.append(dewpoint)
+    return location_dewpoint_data
+
+
+def get_formatted_dewpoint_data(location_dewpoint_data, location, stations, data):
+    min_val = min(location_dewpoint_data)
+    max_val = max(location_dewpoint_data)
+    avg_val = sum(location_dewpoint_data)/len(location_dewpoint_data)
+
+    data.append({
+        'name': f'{location.city.name}, {location.state.name}, {location.country.name}',
+        'measurement': 'dewpoint',
+        'lat': location.lat,
+        'lng': location.lng,
+        'population': stations.count(),
+        'min': min_val if min_val is not None else 0,
+        'max': max_val if max_val is not None else 0,
+        'avg': round(avg_val if avg_val is not None else 0, 2),
+    })
+
+
+def get_formatted_temp_data(location_temp_data, location, stations, data):
+    min_val = location_temp_data.aggregate(Min('value'))['value__min']
+    max_val = location_temp_data.aggregate(Max('value'))['value__max']
+    avg_val = location_temp_data.aggregate(Avg('value'))['value__avg']
+
+    data.append({
+        'name': f'{location.city.name}, {location.state.name}, {location.country.name}',
+        'measurement': 'temperature',
+        'lat': location.lat,
+        'lng': location.lng,
+        'population': stations.count(),
+        'min': min_val if min_val is not None else 0,
+        'max': max_val if max_val is not None else 0,
+        'avg': round(avg_val if avg_val is not None else 0, 2),
+    })
+
+
 def download_csv_data(request):
     print("Getting time for csv req")
     startT = time.time()
