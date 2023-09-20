@@ -3,7 +3,7 @@ from receiver import mqtt
 
 
 class Command(BaseCommand):
-    help = 'Starts MQTT suscription'
+    help = 'Starts MQTT subscription'
 
     def handle(self, *args, **kwargs):
         mqtt.client.loop_forever()
