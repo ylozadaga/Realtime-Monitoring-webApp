@@ -112,11 +112,11 @@ class Data(models.Model):
             )
         ]
 
-    def base_time_now():
+    def base_time_now(self):
         now = timezone.now()
         return datetime(now.year, now.month, now.day, now.hour, tzinfo=now.tzinfo)
 
-    def timestamp_now():
+    def timestamp_now(self):
         now = timezone.now()
         return int(now.timestamp() * 1000000)
 
