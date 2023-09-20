@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'crispy_forms',
+    'crispy_bootstrap4'
     'control',
     'receiver',
     'viewer'
@@ -96,7 +97,7 @@ DATABASES = {
         "USER": "dbadmin",  # Nombre de usuario
         "PASSWORD": "uniandesIOT1234*",  # Contraseña
         "HOST": "3.90.213.58",  # Dirección IP de la base de datos
-        "PORT": "",  # Puerto de la base de datos
+        "PORT": "5432",  # Puerto de la base de datos
     }
 }
 
